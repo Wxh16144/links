@@ -1,0 +1,131 @@
+<head>
+  <style>
+    body {
+      font-size: 5.8rem;
+      opacity: 0.3;
+      filter: blur(2px);
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg, white);
+      color: var(--text, black);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #fff;
+        --text: #000000e0;
+        --error-text: #ff4d4f;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141414;
+        --text: #ffffffd9;
+        --error-text: #dc4446;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        font-size: 3.2rem;
+      }
+
+      body[data-error] {
+        font-size: 1.2rem;
+      }
+    }
+
+    body[data-error] {
+      opacity: .6;
+      filter: none;
+      color: var(--error-text, red);
+    }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>Short URL Redirect</title>
+
+</head>
+
+<body>Redirecting...</body>
+
+<script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js">
+  // https://github.com/jakearchibald/idb-keyval/blob/v6.2.1/rollup.config.js#L136-L137
+</script>
+
+<script>
+  const owner = 'Wxh16144'
+  const repo = 'links'
+  const strict = true // commit 需要 GPG 签名
+
+  const ref = String(location.pathname).slice(1)
+
+  // https://stackoverflow.com/a/468378/11302760
+  const SHA_RE = /^[0-9a-f]{4,}$/
+
+  const token = localStorage.getItem('GITHUB_TOKEN')
+  const store = idbKeyval.createStore(owner, repo)
+
+  async function run(params) {
+    if (typeof ref !== 'string') throw new Error('Invalid ref')
+
+    const historyURL = await idbKeyval.get(ref, store)
+    if (typeof historyURL === 'string' && historyURL.length > 0) {
+      return Promise.resolve(historyURL)
+    }
+
+    const headers = new Headers()
+    headers.set('Accept', 'application/vnd.github.raw+json')
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+
+    // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#get-a-commit
+    const url = `https://api.github.com/repos/${owner}/${repo}/commits/${ref}`
+
+    return fetch(url, { method: 'GET', headers, })
+      .then(response => {
+        if (!response.ok) throw new Error("Network response was not ok");
+        return response.json()
+      })
+      .then((data) => {
+        if (strict) {
+          const verification = data?.commit?.verification
+          if (verification?.verified !== true) {
+            throw new Error('URL is not verified/signed')
+          }
+          if (verification?.reason !== 'valid') {
+            throw new Error(`URL verification failed: ${verification.reason}`)
+          }
+        }
+
+        const message = data?.commit?.message;
+        if (typeof message === 'string') return message
+
+        throw new Error('Invalid URL format');
+      })
+      .then((message) => new URL(message))
+      .then(async (url) => {
+        // 仅保存 SHA, 如果是 tag or branch, 则不保存
+        if (SHA_RE.test(ref)) {
+          await idbKeyval.set(ref, url.href, store);
+        }
+        return url.href
+      })
+  }
+
+  run()
+    .then((url) => {
+      window.location.href = url
+    })
+    .catch((error) => {
+      console.error(`[${document.title}]:`, error)
+      document.body.setAttribute('data-error', '')
+      if (typeof error?.message === 'string') {
+        document.body.textContent = error.message
+      } else {
+        document.body.textContent = 'An error occurred'
+      }
+    })
+</script>
