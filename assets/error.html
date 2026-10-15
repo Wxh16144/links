@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Short URL Redirect</title>
+  <style>
+    body {
+      margin: 0;
+      font-size: 5.8rem;
+      opacity: 0.3;
+      filter: blur(2px);
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg, white);
+      color: var(--text, black);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #fff;
+        --text: #000000e0;
+        --error-text: #ff4d4f;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141414;
+        --text: #ffffffd9;
+        --error-text: #dc4446;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        font-size: 3.2rem;
+      }
+
+      body[data-error] {
+        font-size: 1.2rem;
+      }
+    }
+
+    body[data-error] {
+      opacity: .6;
+      filter: none;
+      color: var(--error-text, red);
+    }
+  </style>
+</head>
+
+<body data-error>{{message}}</body>
+</html>

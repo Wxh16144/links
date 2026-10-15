@@ -1,0 +1,17 @@
+links — short link service
+
+Usage
+  GET  /                Home page
+  GET  /_health         Health check (HTML when Accept: text/html, otherwise JSON)
+  GET  /_help           This help (plain text)
+  GET  /{reference}     Redirect to the URL mapped by reference
+  POST /{reference}     Look up reference details (JSON)
+
+reference can be:
+  - a commit SHA prefix (min 4 chars by default), unique match -> 301 permanent redirect
+  - a tag name, whose target commit message is the URL -> 302 temporary redirect
+
+POST detail responses
+  commit   hit:  {"kind":"commit","sha":"...","url":"..."}
+  tag      hit:  {"kind":"tag","tag":"...","sha":"...","url":"..."}
+  miss:          {"kind":"none"}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!--!
+Design: https://gist.github.com/Wxh16144/7aa5eafae7b12d404bdf96c0c1297726
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Health</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+    }
+    table { border-collapse: collapse; }
+    td {
+      padding: .4rem .8rem;
+      border-bottom: 1px solid #8884;
+    }
+    td:first-child {
+      opacity: .6;
+      padding-right: 2rem;
+    }
+    #uptime { font-variant-numeric: tabular-nums; }
+    .muted { opacity: .5; display: block; }
+  </style>
+</head>
+<body>
+  <table>
+    <tr><td>Status</td><td>ok</td></tr>
+    <tr><td>Uptime</td><td id="uptime"></td></tr>
+    <tr><td>Ref</td><td>{{ref}}</td></tr>
+    <tr><td>Repo</td><td>{{repo}}</td></tr>
+    <tr><td>Commits</td><td>{{commits}}</td></tr>
+    <tr><td>Tags</td><td>{{tags}}</td></tr>
+    <tr><td>Loaded at</td><td>{{loaded_at}} <span class="muted" id="loaded-at"></span></td></tr>
+  </table>
+  <script>
+    // injected once, then accumulated locally; re-anchored every 60s or on tab focus
+    let base = {{uptime}} * 1000;
+    let startTs;
+    const el = document.getElementById('uptime');
+
+    // loaded_at is unix seconds; render as readable local time
+    const loadedAt = new Date({{loaded_at}} * 1000);
+    document.getElementById('loaded-at').textContent =
+      '(' + loadedAt.toLocaleString() + ')';
+
+    function fmt(ms) {
+      ms = Math.floor(ms);
+      const day = Math.floor(ms / 86400000);
+      ms %= 86400000;
+      const hour = Math.floor(ms / 3600000);
+      ms %= 3600000;
+      const min = Math.floor(ms / 60000);
+      ms %= 60000;
+      const sec = Math.floor(ms / 1000);
+      const milli = ms % 1000;
+      // hide leading zero units to keep width stable
+      const parts = [
+        [day, 'd', 1],
+        [hour, 'h', 2],
+        [min, 'm', 2],
+        [sec, 's', 2],
+        [milli, 'ms', 3],
+      ];
+      let started = false;
+      return parts.reduce((acc, [v, u, width]) => {
+        if (!started && v === 0) return acc;
+        started = true;
+        return acc + v.toString().padStart(width, '0') + u + ' ';
+      }, '').trim() || '0 ms';
+    }
+
+    function loop(ts) {
+      startTs ??= ts;
+      el.textContent = fmt(base + (ts - startTs));
+      requestAnimationFrame(loop);
+    }
+
+    async function resync() {
+      try {
+        const res = await fetch(location.href, { headers: { Accept: 'application/json' } });
+        if (res.ok) {
+          base = (await res.json()).uptime * 1000;
+          startTs = undefined;
+        }
+      } catch {}
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) resync();
+    });
+
+    requestAnimationFrame(loop);
+    setInterval(resync, 60000);
+  </script>
+</body>
+</html>
